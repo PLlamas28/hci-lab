@@ -70,6 +70,7 @@ import androidx.compose.runtime.setValue
 
 import androidx.core.app.ActivityCompat
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.util.Log
 import android.widget.Toast
@@ -78,6 +79,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import androidx.core.content.ContextCompat
 
 import com.samsung.android.service.health.tracking.ConnectionListener
 import com.samsung.android.service.health.tracking.HealthTracker
@@ -86,18 +88,88 @@ import com.samsung.android.service.health.tracking.HealthTrackerException
 import com.samsung.android.service.health.tracking.HealthTrackingService
 import com.samsung.android.service.health.tracking.data.DataPoint
 import com.samsung.android.service.health.tracking.data.HealthTrackerType
+import com.samsung.android.service.health.tracking.data.ValueKey
+import kotlinx.coroutines.GlobalScope
+
+import com.example.broken_test_3.presentation.WebSocketClient
+import com.example.broken_test_3.presentation.WebSocketListener
+import com.example.broken_test_3.presentation.WebSocketService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.runBlocking
 
 
-class MainActivity : ComponentActivity() {
 
+class MainActivity : ComponentActivity() , WebSocketListener {
+
+    //private val webSocketClient = WebSocketClient("192.168.50.111")
+
+    val accelerometerListener = object : HealthTracker.TrackerEventListener {
+        override fun onDataReceived(list: List<DataPoint>) {
+                // Process your data
+            Log.i(APP_TAG, "X received: ${list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_X)*(9.81 / (16383.75 / 4.0))} m/s^2")
+            Log.i(APP_TAG, "Y received: ${list[0].getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y)*(9.81 / (16383.75 / 4.0))}")
+            Log.i(APP_TAG, "Z received: ${list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z)*(9.81 / (16383.75 / 4.0))}")
+
+            CoroutineScope(Dispatchers.IO).launch {
+                sendSocketData(
+                    list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_X),
+                    list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y),
+                    list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z)
+                )
+            }
+        }
+
+        private suspend fun sendSocketData(xAccel: kotlin.Int, yAccel: kotlin.Int, zAccel: kotlin.Int) {
+            WebSocketClient.send("X: $xAccel, Y: $yAccel, Z: $zAccel")
+        }
+
+        override fun onFlushCompleted() {
+            // Process flush completion
+        }
+
+        override fun onError(trackerError: HealthTracker.TrackerError) {
+            Log.i(APP_TAG, "onError called")
+            when (trackerError) {
+                HealthTracker.TrackerError.PERMISSION_ERROR -> {
+                    runOnUiThread {
+                        Toast.makeText(applicationContext,
+                            "Permissions Check Failed", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                HealthTracker.TrackerError.SDK_POLICY_ERROR -> {
+                    runOnUiThread {
+                        Toast.makeText(applicationContext,
+                            "SDK Policy denied", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                else -> {
+                    // Handle other errors if necessary
+                }
+            }
+        }
+    }
+    lateinit var healthTrackingService: HealthTrackingService
     // Prepare a connection listener to connect with Health Platform
     private val connectionListener = object : ConnectionListener {
         override fun onConnectionSuccess() {
             // Process connection activities here
+            Log.d(APP_TAG, "onConnectionSuccess")
+            val availableTrackers: List<HealthTrackerType> = healthTrackingService.trackingCapability.supportHealthTrackerTypes
+            try {
+                Log.d(APP_TAG, "Available Trackers: $availableTrackers")
+            } catch (e:Exception){
+                Log.d(APP_TAG, "Exception: $e\nFailure in onConnectSuccess")
+            }
+
+            val tracker: HealthTracker =
+                healthTrackingService.getHealthTracker(HealthTrackerType.ACCELEROMETER_CONTINUOUS)
+            tracker.setEventListener(accelerometerListener)
+
         }
 
         override fun onConnectionEnded() {
             // Process disconnection activities here
+            Log.d(APP_TAG, "onConnectionEnded")
         }
 
         override fun onConnectionFailed(e: HealthTrackerException) {
@@ -109,6 +181,7 @@ class MainActivity : ComponentActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
+            Log.d(APP_TAG, "onConnectionFailed: $e")
             if (e.hasResolution()) {
                 e.resolve(this@MainActivity)
             }
@@ -128,28 +201,22 @@ class MainActivity : ComponentActivity() {
 
         setTheme(android.R.style.Theme_DeviceDefault)
 
-        // Connect to WiFi
-//        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-//        val callback = object : ConnectivityManager.NetworkCallback() {
-//            override fun onAvailable(network: Network) {
-//                super.onAvailable(network)
-//                // The Wi-Fi network has been acquired. Bind it to use this network by default.
-//                connectivityManager.bindProcessToNetwork(network)
-//                print("Connected to WiFi")
-//            }
+//        connectButton.setOnClickListener {
 //
-//            override fun onLost(network: Network) {
-//                super.onLost(network)
-//                // Called when a network disconnects or otherwise no longer satisfies this request or callback.
-//                print("Disconnected from WiFi")
+//        }
+        val intent = Intent(this, WebSocketService::class.java)
+        ContextCompat.startForegroundService(this, intent)
+//        runBlocking{
+//            GlobalScope.launch(Dispatchers.Main) {
+//                webSocketClient.connect()
 //            }
 //        }
-//        connectivityManager.requestNetwork(
-//            NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build(),
-//            callback
-//        )
-//
 
+
+
+//        disconnectButton.setOnClickListener {
+//            webSocketClient.disconnect()
+//        }
 
 //        // Check for Activity Recognition permission
         if (ActivityCompat.checkSelfPermission(
@@ -170,8 +237,9 @@ class MainActivity : ComponentActivity() {
             //Log.d(APP_TAG, "Permission already granted")
         }
 
+
         // Connect to Health Platform
-        val healthTrackingService = HealthTrackingService(connectionListener, applicationContext)
+        healthTrackingService = HealthTrackingService(connectionListener, applicationContext)
         healthTrackingService.connectService()
 
 
@@ -181,9 +249,12 @@ class MainActivity : ComponentActivity() {
             if (healthTrackingService.trackingCapability == null){
                 Log.d(APP_TAG, "Null")
             }
-//            val availableTrackers: List<HealthTrackerType> =
-            val trackingCapability: HealthTrackerCapability = healthTrackingService.getTrackingCapability() //.getSupportedHealthTrackerTypes()
+//
+            val trackingCapability: HealthTrackerCapability  = healthTrackingService.getTrackingCapability()//.getSupportedHealthTrackerTypes()
             Log.d(APP_TAG, "Tracking capability: $trackingCapability")
+            //Log.d(APP_TAG, healthTrackingService.connectService().toString())
+            //val availableTrackers: List<HealthTrackerType> = trackingCapability.supportHealthTrackerTypes
+
             Toast.makeText(applicationContext, "Good", Toast.LENGTH_SHORT).show()
 
 
@@ -192,12 +263,9 @@ class MainActivity : ComponentActivity() {
             Log.d(APP_TAG, "Exception: $e")
             Log.d(APP_TAG, "Service state: $healthTrackingService")
             Log.d(APP_TAG, "Geeet capabilities: "+healthTrackingService.trackingCapability)
-            Log.d(APP_TAG, "Size tracker types: "+healthTrackingService.trackingCapability.supportHealthTrackerTypes.size)
-
 
         }
-//        val availableTrackers: List<HealthTrackerType> =
-//            healthTrackingService.trackingCapability.supportHealthTrackerTypes
+        //val availableTrackers: List<HealthTrackerType> = healthTrackingService.trackingCapability.supportHealthTrackerTypes
 
         // Capability check for accelerometer
 //        if (!availableTrackers.contains(HealthTrackerType.ACCELEROMETER_CONTINUOUS)) {
@@ -215,48 +283,12 @@ class MainActivity : ComponentActivity() {
 //        }
 
 //
-//        // Set up a listener for accelerometer data
-//        val accelerometerListener = object : HealthTracker.TrackerEventListener {
-//            override fun onDataReceived(list: List<DataPoint>) {
-//                // Process your data
-//            }
-//
-//            override fun onFlushCompleted() {
-//                // Process flush completion
-//            }
-//
-//            override fun onError(trackerError: HealthTracker.TrackerError) {
-//                Log.i(APP_TAG, "onError called")
-//                when (trackerError) {
-//                    HealthTracker.TrackerError.PERMISSION_ERROR -> {
-//                        runOnUiThread {
-//                            Toast.makeText(applicationContext,
-//                                "Permissions Check Failed", Toast.LENGTH_SHORT).show()
-//                        }
-//                    }
-//                    HealthTracker.TrackerError.SDK_POLICY_ERROR -> {
-//                        runOnUiThread {
-//                            Toast.makeText(applicationContext,
-//                                "SDK Policy denied", Toast.LENGTH_SHORT).show()
-//                        }
-//                    }
-//                    else -> {
-//                        // Handle other errors if necessary
-//                    }
-//                }
-//            }
-//        }
-//
 //        // Note:
 //        // If you would like to get another kind of sensor data
 //        // create a new HealthTracker instance and add a separate
 //        // listener to it.
-//
-//        // Get a handle to the accelerometer tracker
-//        val tracker: HealthTracker =
-//            healthTrackingService.getHealthTracker(HealthTrackerType.ACCELEROMETER_CONTINUOUS)
-//        tracker.setEventListener(accelerometerListener)
-//
+
+
 
 
 
@@ -274,6 +306,20 @@ class MainActivity : ComponentActivity() {
 //            )
             VibrationButtonScreen()
         }
+    }
+
+    override fun onConnected() {
+        // Handle connection
+        Log.i(APP_TAG, "Websocket is connected")
+    }
+
+    override suspend fun onMessage(message: String) {
+        // Handle received message
+        //webSocketClient.send(message)
+    }
+
+    override fun onDisconnected() {
+        // Handle disconnection
     }
 }
 
