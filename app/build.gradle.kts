@@ -63,6 +63,12 @@ dependencies {
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4") // Latest version
     implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
 
+    implementation ("io.ktor:ktor-client-android:3.1.2")
+    implementation ("io.ktor:ktor-client-core:3.1.2") // 2.3.10
+    implementation ("io.ktor:ktor-client-cio:3.1.2")
+    implementation ("io.ktor:ktor-client-websockets:3.1.2")
+    implementation("io.ktor:ktor-client-okhttp:3.1.2")
+
     implementation (libs.androidx.runtime) // Adjust version as needed
     implementation (libs.androidx.ui) // Required for Jetpack Compose
 
