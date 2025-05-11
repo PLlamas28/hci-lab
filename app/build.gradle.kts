@@ -2,6 +2,10 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+
+
+    kotlin("plugin.serialization") version "2.1.20"
+
 }
 
 android {
@@ -75,4 +79,7 @@ dependencies {
     //implementation (libs.xusers.peter.downloads.samsung.health.sdk.for1.android.x0241205.data.x.x.x.libs.samsung.health.data.x.x.x.aar)
     //implementation (files("C:/Users/peter/Downloads/samsung-health-sdk-for-android-20241205/data-1.5.1/libs/samsung-health-data-1.5.1.aar"))
     implementation (files("C:/Users/peter/Downloads/samsung-health-sensor-sdk_v1.3.0/1.3.0/libs/samsung-health-sensor-api-v1.3.0.aar"))
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
+
 }

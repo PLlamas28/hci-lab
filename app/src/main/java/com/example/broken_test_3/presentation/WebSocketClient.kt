@@ -26,6 +26,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.VibrationEffect
+import android.os.Vibrator
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationCompat
 import com.example.broken_test_3.R
 import com.example.broken_test_3.presentation.theme.Broken_Test_3Theme
@@ -46,12 +49,13 @@ object WebSocketClient {
     private val outgoingMessages = Channel<String>(capacity = Channel.UNLIMITED)
     private val host_ip: String = "192.168.50.111"
     private var sessionJob: Job? = null
+    private lateinit var listener: WebSocketListener
 
 
     suspend fun connect() {
         sessionJob = CoroutineScope(Dispatchers.IO).launch {
 
-            Log.d("app tag","Attempting to connect to WebSocket...")
+            Log.d("test_tag","Attempting to connect to WebSocket...")
             try {
 
 
@@ -66,36 +70,30 @@ object WebSocketClient {
                     }
 
                     // Receiver coroutine
-//                    val receiver = launch {
-//                        incoming.consumeAsFlow().collect { frame ->
-//                            if (frame is Frame.Text) {
-//                                Log.d("test_tag", frame.readText())
-//                            }
-//                        }
-//                    }
+                    val receiver = launch {
+                        incoming.consumeAsFlow().collect { frame ->
+                            if (frame is Frame.Text) {
+                                val message = frame.readText()
+                                Log.d("test_tag", message)
+                                // Switch to Main thread before calling activity function
+                                if (message == "EXECUTE_VIBRATION"){
+                                    withContext(Dispatchers.Main) {
+                                        listener.onMessage(message)
+                                    }
+                                }
+
+                            }
+                        }
+                    }
 
                     sender.join() // Wait for sender to finish (e.g. when channel is closed)
-                    //receiver.cancelAndJoin() // Cancel receiver when done
+                    receiver.cancelAndJoin() // Cancel receiver when done
                 }
             } catch (e: Exception) {
                 Log.e("test_tag", "Exception: $e")
             }
         }
 
-//        runBlocking {
-//            Log.d("test_tag","Attempting to connect to WebSocket...")
-//            try{
-//                client.webSocket(method = HttpMethod.Get, host = host_ip, port = 8765, path="") { //method = HttpMethod.Get, host = "ws://localhost", port = 7890, path = "/echo"
-//                    Log.d("test_tag","Connection success!")
-//                    send("I am the watch client")
-//
-//
-//                }
-//            }catch(e:Exception){
-//                Log.e("test_tag","Exception: $e")
-//            }
-//        }
-//        client.close()
     }
 
     // Send a message to the server
@@ -109,6 +107,11 @@ object WebSocketClient {
         sessionJob?.cancelAndJoin()
         client.close()
     }
+
+    public fun setListener(listener: WebSocketListener) {
+        this.listener = listener
+    }
+
 
 
 }
