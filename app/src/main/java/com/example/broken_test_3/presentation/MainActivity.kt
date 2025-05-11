@@ -96,7 +96,10 @@ import com.example.broken_test_3.presentation.WebSocketListener
 import com.example.broken_test_3.presentation.WebSocketService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 
 
 class MainActivity : ComponentActivity() , WebSocketListener {
@@ -110,16 +113,24 @@ class MainActivity : ComponentActivity() , WebSocketListener {
             Log.i(APP_TAG, "Z received: ${list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z)*(9.81 / (16383.75 / 4.0))}")
 
             CoroutineScope(Dispatchers.IO).launch {
-                sendSocketData(
-                    list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_X),
-                    list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y),
-                    list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z)
-                )
+                sendSocketBatch(list)
+
             }
         }
 
-        private suspend fun sendSocketData(xAccel: kotlin.Int, yAccel: kotlin.Int, zAccel: kotlin.Int) {
-            WebSocketClient.send("X: $xAccel, Y: $yAccel, Z: $zAccel")
+        private suspend fun sendSocketBatch(list: List<DataPoint>) {
+            for (dataPoint in list) {
+                val json = Json.encodeToString(AccelerometerDP(
+                    name = "Accelerometer",
+                    timestamp = dataPoint.timestamp,
+                    x = dataPoint.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_X).toInt(),
+                    y = dataPoint.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y).toInt(),
+                    z = dataPoint.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z).toInt(),
+                    unit = "raw"
+                ))
+                WebSocketClient.send(json)
+            }
+
         }
 
         override fun onFlushCompleted() {
