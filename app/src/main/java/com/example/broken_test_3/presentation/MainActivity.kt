@@ -101,7 +101,6 @@ import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() , WebSocketListener {
 
-    //private val webSocketClient = WebSocketClient("192.168.50.111")
 
     val accelerometerListener = object : HealthTracker.TrackerEventListener {
         override fun onDataReceived(list: List<DataPoint>) {
@@ -201,9 +200,8 @@ class MainActivity : ComponentActivity() , WebSocketListener {
 
         setTheme(android.R.style.Theme_DeviceDefault)
 
-//        connectButton.setOnClickListener {
-//
-//        }
+        WebSocketClient.setListener(this)
+
         val intent = Intent(this, WebSocketService::class.java)
         ContextCompat.startForegroundService(this, intent)
 //        runBlocking{
@@ -315,7 +313,7 @@ class MainActivity : ComponentActivity() , WebSocketListener {
 
     override suspend fun onMessage(message: String) {
         // Handle received message
-        //webSocketClient.send(message)
+        triggerVibration(this)
     }
 
     override fun onDisconnected() {
