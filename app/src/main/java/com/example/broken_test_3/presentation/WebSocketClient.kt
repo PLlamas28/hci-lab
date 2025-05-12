@@ -55,13 +55,11 @@ object WebSocketClient {
     suspend fun connect() {
         sessionJob = CoroutineScope(Dispatchers.IO).launch {
 
-            Log.d("test_tag","Attempting to connect to WebSocket...")
+            Log.d("WebSocketClient","Attempting to connect to WebSocket...")
             try {
 
-
                 client.webSocket(method = HttpMethod.Get, host = host_ip, port = 8765, path = "",) {
-                    Log.d("test_tag", "WebSocket connection success!")
-                    send("I am the watch client")
+                    Log.d("WebSocketClient", "WebSocket connection success!")
                     // Sender coroutine
                     val sender = launch {
                         for (msg in outgoingMessages) {
@@ -74,7 +72,7 @@ object WebSocketClient {
                         incoming.consumeAsFlow().collect { frame ->
                             if (frame is Frame.Text) {
                                 val message = frame.readText()
-                                Log.d("test_tag", message)
+                                Log.d("WebSocketClient", message)
                                 // Switch to Main thread before calling activity function
                                 if (message == "EXECUTE_VIBRATION"){
                                     withContext(Dispatchers.Main) {
@@ -90,7 +88,7 @@ object WebSocketClient {
                     receiver.cancelAndJoin() // Cancel receiver when done
                 }
             } catch (e: Exception) {
-                Log.e("test_tag", "Exception: $e")
+                Log.e("WebSocketClient", "Exception: $e")
             }
         }
 
