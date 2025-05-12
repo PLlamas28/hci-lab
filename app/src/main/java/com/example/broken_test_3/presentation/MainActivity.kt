@@ -105,76 +105,25 @@ import kotlinx.serialization.encodeToString
 class MainActivity : ComponentActivity() , WebSocketListener {
 
 
-    val accelerometerListener = object : HealthTracker.TrackerEventListener {
-        override fun onDataReceived(list: List<DataPoint>) {
-                // Process your data
-            Log.i(APP_TAG, "X received: ${list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_X)*(9.81 / (16383.75 / 4.0))} m/s^2")
-            Log.i(APP_TAG, "Y received: ${list[0].getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y)*(9.81 / (16383.75 / 4.0))}")
-            Log.i(APP_TAG, "Z received: ${list.get(0).getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z)*(9.81 / (16383.75 / 4.0))}")
 
-            CoroutineScope(Dispatchers.IO).launch {
-                sendSocketBatch(list)
-
-            }
-        }
-
-        private suspend fun sendSocketBatch(list: List<DataPoint>) {
-            for (dataPoint in list) {
-                val json = Json.encodeToString(AccelerometerDP(
-                    name = "Accelerometer",
-                    timestamp = dataPoint.timestamp,
-                    x = dataPoint.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_X).toInt(),
-                    y = dataPoint.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Y).toInt(),
-                    z = dataPoint.getValue(ValueKey.AccelerometerSet.ACCELEROMETER_Z).toInt(),
-                    unit = "raw"
-                ))
-                WebSocketClient.send(json)
-            }
-
-        }
-
-        override fun onFlushCompleted() {
-            // Process flush completion
-        }
-
-        override fun onError(trackerError: HealthTracker.TrackerError) {
-            Log.i(APP_TAG, "onError called")
-            when (trackerError) {
-                HealthTracker.TrackerError.PERMISSION_ERROR -> {
-                    runOnUiThread {
-                        Toast.makeText(applicationContext,
-                            "Permissions Check Failed", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                HealthTracker.TrackerError.SDK_POLICY_ERROR -> {
-                    runOnUiThread {
-                        Toast.makeText(applicationContext,
-                            "SDK Policy denied", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                else -> {
-                    // Handle other errors if necessary
-                }
-            }
-        }
-    }
     lateinit var healthTrackingService: HealthTrackingService
     // Prepare a connection listener to connect with Health Platform
     private val connectionListener = object : ConnectionListener {
         override fun onConnectionSuccess() {
             // Process connection activities here
-            Log.d(APP_TAG, "onConnectionSuccess")
+            Log.d(APP_TAG, "Connection to health platform is a success")
             val availableTrackers: List<HealthTrackerType> = healthTrackingService.trackingCapability.supportHealthTrackerTypes
-            try {
-                Log.d(APP_TAG, "Available Trackers: $availableTrackers")
-            } catch (e:Exception){
-                Log.d(APP_TAG, "Exception: $e\nFailure in onConnectSuccess")
-            }
+            Log.d(APP_TAG, "Available Trackers: $availableTrackers")
 
-            val tracker: HealthTracker =
+            val accelTracker: HealthTracker =
                 healthTrackingService.getHealthTracker(HealthTrackerType.ACCELEROMETER_CONTINUOUS)
-            tracker.setEventListener(accelerometerListener)
-
+            accelTracker.setEventListener(AccelerometerListener)
+            val hrTracker: HealthTracker =
+                healthTrackingService.getHealthTracker(HealthTrackerType.HEART_RATE)
+            hrTracker.setEventListener(HeartRateListener)
+            val skinTempTracker: HealthTracker =
+                healthTrackingService.getHealthTracker(HealthTrackerType.SKIN_TEMPERATURE)
+            skinTempTracker.setEventListener(SkinTempListener)
         }
 
         override fun onConnectionEnded() {
@@ -215,12 +164,6 @@ class MainActivity : ComponentActivity() , WebSocketListener {
 
         val intent = Intent(this, WebSocketService::class.java)
         ContextCompat.startForegroundService(this, intent)
-//        runBlocking{
-//            GlobalScope.launch(Dispatchers.Main) {
-//                webSocketClient.connect()
-//            }
-//        }
-
 
 
 //        disconnectButton.setOnClickListener {
@@ -246,8 +189,7 @@ class MainActivity : ComponentActivity() , WebSocketListener {
             //Log.d(APP_TAG, "Permission already granted")
         }
 
-
-        // Connect to Health Platform
+            // Connect to Health Platform
         healthTrackingService = HealthTrackingService(connectionListener, applicationContext)
         healthTrackingService.connectService()
 
@@ -262,8 +204,9 @@ class MainActivity : ComponentActivity() , WebSocketListener {
             val trackingCapability: HealthTrackerCapability  = healthTrackingService.getTrackingCapability()//.getSupportedHealthTrackerTypes()
             Log.d(APP_TAG, "Tracking capability: $trackingCapability")
             //Log.d(APP_TAG, healthTrackingService.connectService().toString())
-            //val availableTrackers: List<HealthTrackerType> = trackingCapability.supportHealthTrackerTypes
 
+//            val availableTrackers: List<HealthTrackerType> = trackingCapability.supportHealthTrackerTypes
+//            Log.d(APP_TAG, "Available Trackers: $availableTrackers")
             Toast.makeText(applicationContext, "Good", Toast.LENGTH_SHORT).show()
 
 
@@ -274,22 +217,6 @@ class MainActivity : ComponentActivity() , WebSocketListener {
             Log.d(APP_TAG, "Geeet capabilities: "+healthTrackingService.trackingCapability)
 
         }
-        //val availableTrackers: List<HealthTrackerType> = healthTrackingService.trackingCapability.supportHealthTrackerTypes
-
-        // Capability check for accelerometer
-//        if (!availableTrackers.contains(HealthTrackerType.ACCELEROMETER_CONTINUOUS)) {
-//            Toast.makeText(applicationContext,
-//                "Accelerometer Tracking not supported on device",
-//                Toast.LENGTH_LONG
-//            ).show()
-//            Log.e(APP_TAG, "This watch does not support accelerometer tracking.")
-//        } else {
-//            Toast.makeText(applicationContext,
-//                "Accelerometer Tracking supported on device",
-//                Toast.LENGTH_LONG
-//            ).show()
-//            Log.i(APP_TAG, "This watch supports accelerometer tracking.")
-//        }
 
 //
 //        // Note:
