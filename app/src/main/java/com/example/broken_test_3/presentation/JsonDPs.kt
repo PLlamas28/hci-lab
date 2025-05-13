@@ -27,5 +27,6 @@ data class SkinTempDP(
     val timestamp: Long,
     val ambientTemp: Int,
     val objTemp: Int,
+    val status: Int,
     val unit: String
 )
