@@ -4,6 +4,7 @@ import android.util.Log
 import com.samsung.android.service.health.tracking.HealthTracker
 import com.samsung.android.service.health.tracking.data.DataPoint
 import com.samsung.android.service.health.tracking.data.ValueKey
+import io.ktor.client.plugins.websocket.WebSockets
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -17,6 +18,7 @@ object HeartRateListener: HealthTracker.TrackerEventListener {
         // Process your data
         Log.i(APP_TAG, "hr[0] received : ${list[0].getValue(ValueKey.HeartRateSet.HEART_RATE)} bpm")
         Log.i(APP_TAG, "hr status[0] received: ${list[0].getValue(ValueKey.HeartRateSet.HEART_RATE_STATUS)}")
+        //Log.i(APP_TAG, "IBI: ${list[0].getValue(ValueKey.HeartRateSet.IBI_LIST.get(0))}")
 
         CoroutineScope(Dispatchers.IO).launch {
             sendSocketBatch(list)
@@ -33,7 +35,11 @@ object HeartRateListener: HealthTracker.TrackerEventListener {
                 unit = "bpm"
             ))
             WebSocketClient.send(json)
+            for (ibi in dataPoint.getValue(ValueKey.HeartRateSet.IBI_LIST)) {
+                WebSocketClient.send("{\"IBI\":${ibi}}")
+            }
         }
+        WebSocketClient.send("End hr batch")
 
     }
 

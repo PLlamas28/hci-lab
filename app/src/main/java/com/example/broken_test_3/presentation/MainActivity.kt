@@ -79,6 +79,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 
 import com.samsung.android.service.health.tracking.ConnectionListener
@@ -119,7 +120,7 @@ class MainActivity : ComponentActivity() , WebSocketListener {
                 healthTrackingService.getHealthTracker(HealthTrackerType.ACCELEROMETER_CONTINUOUS)
             accelTracker.setEventListener(AccelerometerListener)
             val hrTracker: HealthTracker =
-                healthTrackingService.getHealthTracker(HealthTrackerType.HEART_RATE)
+                healthTrackingService.getHealthTracker(HealthTrackerType.HEART_RATE_CONTINUOUS)
             hrTracker.setEventListener(HeartRateListener)
             val skinTempTracker: HealthTracker =
                 healthTrackingService.getHealthTracker(HealthTrackerType.SKIN_TEMPERATURE)
@@ -159,6 +160,7 @@ class MainActivity : ComponentActivity() , WebSocketListener {
         super.onCreate(savedInstanceState)
 
         setTheme(android.R.style.Theme_DeviceDefault)
+
 
         WebSocketClient.setListener(this)
 

@@ -30,6 +30,7 @@ object SkinTempListener: HealthTracker.TrackerEventListener {
                 timestamp = dataPoint.timestamp,
                 ambientTemp = dataPoint.getValue(ValueKey.SkinTemperatureSet.AMBIENT_TEMPERATURE).toInt(),
                 objTemp = dataPoint.getValue(ValueKey.SkinTemperatureSet.OBJECT_TEMPERATURE).toInt(),
+                status = dataPoint.getValue(ValueKey.SkinTemperatureSet.STATUS).toInt(),
                 unit = "Celsius"
             ))
             WebSocketClient.send(json)
